@@ -1,0 +1,68 @@
+// Copyright (c) 2017-2019 Xiamen Yaji Software Co., Ltd.
+// 用于BoundingBox的线的渲染，被物体挡住的包围盒的线会带透明度，没被物体挡住的线是实体的。
+CCEffect %{
+  techniques:
+  - passes:
+      - stage: transparent
+        vert: gizmo-line-vs
+        frag: gizmo-line-fs:front
+        depthStencilState:
+          depthTest: true
+        blendState:
+          targets:
+          - blend: true
+            blendEq: add
+            blendSrc: src_alpha
+            blendDst: one
+        rasterizerState:
+          cullMode: none
+        properties:
+          diffuseColor: { value: [1, 1, 1, 1], editor: { type: color } }
+      - stage: transparent
+        vert: gizmo-line-vs
+        frag: gizmo-line-fs:back
+        depthStencilState:
+          depthTest: true
+          depthFunc: greater
+        blendState:
+          targets:
+          - blend: true
+            blendEq: add
+            blendSrc: src_alpha
+            blendDst: one
+        rasterizerState:
+          cullMode: none
+        properties:
+          diffuseColor: { value: [1, 1, 1, 1], editor: { type: color } }
+}%
+
+CCProgram gizmo-line-vs %{
+  precision highp float;
+
+  #include <cc-global>
+  #include <cc-local>
+
+  attribute vec3 a_position;
+
+  void main () {
+    gl_Position = cc_matViewProj * cc_matWorld * vec4(a_position, 1);
+    gl_Position.z -= 0.0001;
+  }
+}%
+
+CCProgram gizmo-line-fs %{
+  precision highp float;
+  
+  #include <output>
+
+  uniform DIFFUSE_COLOR {
+    vec4 diffuseColor;
+  };
+
+  vec4 front() {
+    return CCFragOutput(diffuseColor);
+  }
+  vec4 back() {
+    return CCFragOutput(vec4(diffuseColor.rgb, diffuseColor.a * 0.2));
+  }
+}%

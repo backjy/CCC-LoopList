@@ -1,0 +1,17 @@
+{
+  "ver": "1.0.25",
+  "uuid": "c0040c95-c57f-49cd-9cbc-12316b73d0d4",
+  "compiledShaders": [
+    {
+      "glsl1": {
+        "vert": "\nprecision highp float;\nattribute vec3 a_position;\nvoid main () {\n  gl_Position = vec4(a_position, 1);\n}",
+        "frag": "\nprecision highp float;\nvoid main () {\n  gl_FragColor = vec4(1.0);\n}"
+      },
+      "glsl3": {
+        "vert": "\nprecision highp float;\nin vec3 a_position;\nvoid main () {\n  gl_Position = vec4(a_position, 1);\n}",
+        "frag": "\nprecision highp float;\nvoid main () {\n  gl_FragColor = vec4(1.0);\n}"
+      }
+    }
+  ],
+  "subMetas": {}
+}

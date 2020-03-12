@@ -1,4 +1,4 @@
-# LoopList 【[git链接]()】
+# LoopList 【[git链接](https://github.com/backjy/CCC-LoopList.git)】
 * 这个控件是一个都比较常用的控件 在ios 上就是类似的就是[UITableView](https://developer.apple.com/documentation/uikit/uitableview)，当大量重复的item 被添加ScrollView上时必然造成性能上的问题，所以就需要用到重复循环利用显示节点来提高性能。
 * 在cocos 上已经有大佬做了相同的东西了[List](https://forum.cocos.org/t/scrollview-item-drawcall/79055/160)做的很完善,  我这个LoopList 实现思路和他有些区别，不用去记录item 的 width| height
   
