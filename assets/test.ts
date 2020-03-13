@@ -62,7 +62,7 @@ export default class test extends cc.Component {
         }
         
         this.showLast.clicked = ()=>{
-            this.list.showItem( this.count - 1)
+            this.list.showItem( this.count - 1, true)
         }
     }
 

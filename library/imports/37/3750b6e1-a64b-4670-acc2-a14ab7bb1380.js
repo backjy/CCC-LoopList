@@ -48,7 +48,7 @@ var test = /** @class */ (function (_super) {
             _this.list.showItem(Math.floor(_this.count / 2));
         };
         this.showLast.clicked = function () {
-            _this.list.showItem(_this.count - 1);
+            _this.list.showItem(_this.count - 1, true);
         };
     };
     test.prototype.onCreateItem = function (list, idx) {

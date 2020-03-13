@@ -1,6 +1,6 @@
 "use strict";
 cc._RF.push(module, '7392bBLh4NAwLoZSiKHSTnO', 'LoopListItem');
-// scripts/LoopListItem.ts
+// looplist/LoopListItem.ts
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property;

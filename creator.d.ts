@@ -8759,7 +8759,9 @@ declare namespace cc {
 	
 	!#zh
 	滚动视图组件 */
-	export class ScrollView extends Component {		
+	export class ScrollView extends Component {
+		[x:string]: any
+		_getHowMuchOutOfBoundary: (addition: cc.Vec2)=>cc.Vec2
 		/** !#en This is a reference to the UI element to be scrolled.
 		!#zh 可滚动展示内容的节点。 */
 		content: Node;		

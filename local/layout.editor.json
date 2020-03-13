@@ -5,7 +5,7 @@
       "main": true,
       "url": "app://editor/index.html",
       "windowType": "dockable",
-      "x": 20,
+      "x": 77,
       "y": 23,
       "width": 1285,
       "height": 906,
@@ -86,15 +86,14 @@
       "panels": [
         "hierarchy",
         "assets",
+        "scene",
+        "game-window",
         "inspector",
         "cocos-services",
-        "scene",
         "console",
-        "timeline",
-        "game-window"
+        "timeline"
       ]
-    },
-    "worker": {}
+    }
   },
   "panels": {},
   "panelLabelWidth": {

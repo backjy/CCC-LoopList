@@ -480,33 +480,33 @@
     "relativePath": "model/primitives.fbx"
   },
   "a1b9f33f-4d51-40ba-bb0e-0967fd1f551f": {
-    "asset": 1583979943860,
-    "meta": 1583979930248,
+    "asset": 1584061810753,
+    "meta": 1584019239844,
     "relativePath": "looplist"
   },
   "7392b04b-8783-40c0-ba19-4a22874939ce": {
-    "asset": 1583919565934,
-    "meta": 1583979946994,
+    "asset": 1584019239845,
+    "meta": 1584061847915,
     "relativePath": "looplist/LoopListItem.ts"
   },
   "8790a66d-a58b-4754-8b03-ecc9f227e6f9": {
-    "asset": 1584004654112,
-    "meta": 1584004654118,
+    "asset": 1584061474630,
+    "meta": 1584061474636,
     "relativePath": "test.fire"
   },
   "3330965c-0f5c-4747-a58d-28872a2c5467": {
-    "asset": 1583982553265,
-    "meta": 1583982569096,
+    "asset": 1584019239845,
+    "meta": 1584061847953,
     "relativePath": "looplist/Touchable.ts"
   },
   "3750b6e1-a64b-4670-acc2-a14ab7bb1380": {
-    "asset": 1584005080491,
-    "meta": 1584005081887,
+    "asset": 1584058985328,
+    "meta": 1584059012247,
     "relativePath": "test.ts"
   },
   "f35eae6a-90f8-4cc0-b7d1-a789b1f9a30b": {
-    "asset": 1584013633921,
-    "meta": 1584013635726,
+    "asset": 1584061724975,
+    "meta": 1584061728962,
     "relativePath": "looplist/LoopList.ts"
   }
 }

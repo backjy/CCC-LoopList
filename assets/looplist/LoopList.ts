@@ -4,12 +4,18 @@ const EPSILON = 1e-4;1
 
 const {ccclass, property, menu, disallowMultiple} = cc._decorator;
 
+export enum Movement{
+    Horizontal,
+    Vertical,
+}
+
 @ccclass
 @disallowMultiple()
 @menu("UIExtension/LoopList")
-export default class LoopList extends cc.ScrollView {
-    /// ts中防止访问cc.ScrollView 私有属性时报错
-    [x: string]: any;
+export default class LoopList extends cc.Component {
+
+    @property( {type:cc.Enum(Movement), serializable: true})
+    movement: Movement = Movement.Vertical;
     
     @property( cc.Float)
     private cacheBoundary: number = 200
@@ -28,21 +34,37 @@ export default class LoopList extends cc.ScrollView {
     /// max padding 区分回收边界和创建边界 避免padding 造成的重复创建和回收
     private _maxPadding: number = 0
 
-    /// recycle & create item boundary
+    /// 缓存边界 recycle & create item boundary
     private leftBoundary: number = 0
     private rightBoundary: number = 0
     private topBoundary: number = 0
     private bottomBoundary: number = 0
+    /// 上下左右边界
+    private _leftBoundary: number   = 0
+    private _bottomBoundary: number = 0 
+    private _rightBoundary: number  = 0
+    private _topBoundary: number    = 0
 
     /// 视口
+    @property( cc.ScrollView)
+    private scrollView: cc.ScrollView = null
+    get content(): cc.Node { return this.scrollView.content}
     get viewPort():cc.Node { return this.content.parent}
 
     onLoad(){
         /// 只允许一个方向
-        this.horizontal = this.vertical? false: true;
+        if( this.scrollView == null) {
+            this.scrollView = this.getComponent( cc.ScrollView)
+        }
+        /// 重置scrollview 滚动属性
+        this.scrollView.horizontal = this.movement == Movement.Horizontal
+        this.scrollView.vertical = this.movement == Movement.Vertical
+        /// 重定向scrollview 函数
+        this.scrollView._getHowMuchOutOfBoundary = this._getHowMuchOutOfBoundary.bind(this)
+        this.scrollView._calculateBoundary = this._calculateBoundary.bind(this)
         if( this.content) {
             /// initialize content view
-            let anch = this.horizontal? cc.v2( 0, 0.5): cc.v2( 0.5, 1)
+            let anch = this.scrollView.horizontal? cc.v2( 0, 0.5): cc.v2( 0.5, 1)
             this.content.setAnchorPoint( anch) 
             this.content.setPosition( cc.Vec2.ZERO)
         }
@@ -51,13 +73,11 @@ export default class LoopList extends cc.ScrollView {
     }
 
     onEnable(){
-        super.onEnable()
-        this.node.on( "scrolling", this.onScrolling, this)
+        this.scrollView.node.on( "scrolling", this.onScrolling, this)
     }
 
     onDisable(){
-        super.onDisable()
-        this.node.off( "scrolling", this.onScrolling, this)
+        this.scrollView.node.off( "scrolling", this.onScrolling, this)
     }
 
     /// initialize total count, item creator
@@ -96,7 +116,7 @@ export default class LoopList extends cc.ScrollView {
             let itemIdx     = fristItem.itemIdx
             /// create top item
             this._recycleAllItems()
-            let arg = this.horizontal? pos.x: pos.y
+            let arg = this.movement == Movement.Horizontal? pos.x: pos.y
             this._updateListView( itemIdx, arg)
         } else {
             this._recycleAllItems( true)
@@ -111,13 +131,19 @@ export default class LoopList extends cc.ScrollView {
         // 限定到 0 - （totalcount -1）范围内
         idx = Math.min( this._totalcount - 1, Math.max(0, idx)) 
         if( bAnime) {
-            this.animeIdx = idx;
-            this.bAnimeMoveing = true;
+            // this.animeIdx = idx;
+            // this.bAnimeMoveing = true;
+            // this.scrollToBottom( 1)
         } else {
             /// 回收所有items 从新创建top item
-            if( this.horizontal) { this._showItemHor( idx) }
-            else { this._showItemVer( idx) }
-            /// 检查是否需要回滚位置
+            switch( this.movement){
+                case Movement.Horizontal:
+                    this._showItemHor( idx)
+                    break
+                case Movement.Vertical:
+                    this._showItemVer( idx)
+                    break
+            }
         }
     }
 
@@ -148,23 +174,31 @@ export default class LoopList extends cc.ScrollView {
     }
 
     update( dt: number) {
-        super.update( dt)
         if( this._itemSizeDirty) {
             this._itemSizeDirty = false
-            if( this.horizontal) { this._updateHorizontalItems()}
-            else { this._updateVerticalItems()}
+            switch( this.movement){
+                case Movement.Horizontal:
+                    this._updateHorizontalItems()
+                    break
+                case Movement.Vertical:
+                    this._updateVerticalItems()
+                    break
+            }
         }
         if( this._itemDirty) {
             this._itemDirty = false
             this._updateListView()
         }
         /// 动画移动
-        this.bAnimeMoveing = this._scro
+        // this.bAnimeMoveing = this._scro
         if( this.bAnimeMoveing) {
-            if( this.horizontal) { 
-                this._animeShowItemHor( this.animeIdx)
-            } else {
-                this._animeShowItemVer( this.animeIdx)
+            switch( this.movement){
+                case Movement.Horizontal:
+                    this._animeShowItemHor( this.animeIdx)
+                    break
+                case Movement.Vertical:
+                    this._animeShowItemVer( this.animeIdx)
+                    break
             }
         }
     }
@@ -172,7 +206,7 @@ export default class LoopList extends cc.ScrollView {
     private _initializePool() {
         if( this._itemPool == null) {
             this._itemPool = {}
-            let prefabs = this.getComponentsInChildren( LoopListItem)
+            let prefabs = this.content.getComponentsInChildren( LoopListItem)
             prefabs.forEach( item=>{
                 /// save templates 
                 let key = item.itemKey = item.node.name
@@ -181,6 +215,13 @@ export default class LoopList extends cc.ScrollView {
                 this._maxPadding        = Math.max( this._maxPadding, item.padding+2)
                 this._recycle( item)
             })
+        }
+    }
+
+    private setContentPosition( pos: cc.Vec2){
+        this.scrollView.stopAutoScroll()
+        if( this.scrollView.content) {
+            this.scrollView.content.position = pos
         }
     }
 
@@ -277,9 +318,10 @@ export default class LoopList extends cc.ScrollView {
             this._recycle( item)
         });
         this._items = []
-        if( reset) {
-            this.stopAutoScroll()
-            this.content.position = cc.Vec2.ZERO
+        if( reset) { this.setContentPosition( cc.Vec2.ZERO)
+            // this.scrollView.stopAutoScroll()
+            // this.scroll
+            // this.content.position = cc.Vec2.ZERO
         }
     }
 
@@ -330,15 +372,24 @@ export default class LoopList extends cc.ScrollView {
             return false
         }
         /// cur count
-        if( this._items.length === 0) {
-            let item = this.horizontal? this._createLeftItem( idx, pos): this._createTopItem( idx, pos)
-            if( item == null) { 
-                return false
-            }
+        let checkcount = 0
+        let create: ( idx: number, pos: number)=> LoopListItem  = null
+        let call: ()=>boolean = null
+        switch( this.movement) {
+            case Movement.Horizontal:
+                create = this._createLeftItem; 
+                call = this._updateHorizontal;
+                break
+            case Movement.Vertical:
+                create = this._createTopItem;
+                 call = this._updateVertical;
+                break
+        }
+        /// check top item
+        if( this._items.length === 0 && create.call( this, idx, pos) == null) {
+            return false
         }
         /// create other items
-        let checkcount = 0
-        let call = this.horizontal? this._updateHorizontal: this._updateVertical
         while( call.call( this)) {
             if( ++checkcount >= this.frameCreateMax) {
                 this._itemDirty = true
@@ -387,21 +438,20 @@ export default class LoopList extends cc.ScrollView {
         if( curCount > 1) {
             /// recycle top item
             let canRecycleTop = (bottomitem.itemIdx !== this._totalcount-1 || bottom_bottom < this._bottomBoundary)
-            if( canRecycleTop && this._getItemBottom( topitem) > (this.topboundary + this._maxPadding)) {
-                this._preItemPadding = topitem.padding
+            if( canRecycleTop && this._getItemBottom( topitem) > (this.topBoundary + this._maxPadding)) {
                 this._items.splice( 0, 1)
                 this._recycle( topitem)
                 return true
             } 
             /// recycle bottom item
-            if( topitem.itemIdx > 0 && this._getItemTop( bottomitem) < (this.bottomboundary - this._maxPadding)) { 
+            if( topitem.itemIdx > 0 && this._getItemTop( bottomitem) < (this.bottomBoundary - this._maxPadding)) { 
                 this._items.splice( curCount-1, 1)
                 this._recycle( bottomitem)
                 return true
             }
         }
         /// create top item
-        if( this._getItemTop( topitem) < this.topboundary) {
+        if( this._getItemTop( topitem) < this.topBoundary) {
             let item = this._createNewItem( topitem.itemIdx - 1)
             if( item) {
                 item.node.y = topitem.node.y + item.padding + item.node.height
@@ -410,7 +460,7 @@ export default class LoopList extends cc.ScrollView {
             }
         }
         /// create bottom item
-        if( bottom_bottom > this.bottomboundary) {
+        if( bottom_bottom > this.bottomBoundary) {
             let item = this._createNewItem( bottomitem.itemIdx + 1)
             if( item) {
                 item.node.y = bottomitem.node.y - bottomitem.node.height - bottomitem.padding
@@ -458,22 +508,21 @@ export default class LoopList extends cc.ScrollView {
         let right_right = this._getItemRight( rightItem)
         if( curCount > 1) {
             /// recycle left item
-            let canRecycleLeft = (rightItem.itemIdx !== (this._totalcount - 1) || right_right > this.rightboundary)
-            if( canRecycleLeft && this._getItemRight( leftItem) < (this.leftboundary - this._maxPadding)) {
-                this._preItemPadding = leftItem.padding
+            let canRecycleLeft = (rightItem.itemIdx !== (this._totalcount - 1) || right_right > this.rightBoundary)
+            if( canRecycleLeft && this._getItemRight( leftItem) < (this.leftBoundary - this._maxPadding)) {
                 this._items.splice( 0, 1)
                 this._recycle( leftItem)
                 return true
             }
             /// recycle right item
-            if( leftItem.itemIdx > 0 && this._getItemLeft(rightItem) > (this.rightboundary + this._maxPadding)) {
+            if( leftItem.itemIdx > 0 && this._getItemLeft(rightItem) > (this.rightBoundary + this._maxPadding)) {
                 this._items.splice( curCount-1, 1)
                 this._recycle( rightItem)
                 return true
             }
         }
         /// create left item
-        if( this._getItemLeft( leftItem) > this.leftboundary) {
+        if( this._getItemLeft( leftItem) > this.leftBoundary) {
             let item = this._createNewItem( leftItem.itemIdx - 1)
             if( item) {
                 item.node.x = leftItem.node.x - item.node.width - item.padding 
@@ -482,7 +531,7 @@ export default class LoopList extends cc.ScrollView {
             }
         }
         /// create bottom item
-        if( right_right < this.rightboundary) {
+        if( right_right < this.rightBoundary) {
             let item = this._createNewItem( rightItem.itemIdx + 1)
             if( item) {
                 item.node.x = rightItem.node.x + rightItem.node.width + rightItem.padding
@@ -495,10 +544,10 @@ export default class LoopList extends cc.ScrollView {
     //// 下面的函数都是重写scrollview 原有的函数
 
     //// stop anime moveing on touch began
-    _onTouchBegan( event: cc.Event, captureListeners: any){
-        super._onTouchBegan( event, captureListeners)
-        if( event.isStopped){ this.bAnimeMoveing = false }
-    }
+    // _onTouchBegan( event: cc.Event, captureListeners: any){
+    //     super._onTouchBegan( event, captureListeners)
+    //     if( event.isStopped){ this.bAnimeMoveing = false }
+    // }
 
     /// 计算边界
     _calculateBoundary(){
@@ -514,10 +563,10 @@ export default class LoopList extends cc.ScrollView {
             this._rightBoundary = this._leftBoundary + viewSize.width;
             this._topBoundary   = this._bottomBoundary + viewSize.height;
             /// 计算回收边界
-            this.leftboundary   = this._leftBoundary - this.cacheBoundary
-            this.rightboundary  = this._rightBoundary + this.cacheBoundary
-            this.topboundary    = this._topBoundary + this.cacheBoundary
-            this.bottomboundary = this._bottomBoundary - this.cacheBoundary
+            this.leftBoundary   = this._leftBoundary - this.cacheBoundary
+            this.rightBoundary  = this._rightBoundary + this.cacheBoundary
+            this.topBoundary    = this._topBoundary + this.cacheBoundary
+            this.bottomBoundary = this._bottomBoundary - this.cacheBoundary
         }
     }
 
@@ -572,6 +621,22 @@ export default class LoopList extends cc.ScrollView {
         return this._bottomBoundary
     }
 
+    get _outOfBoundaryAmount(): cc.Vec2{
+        return this.scrollView._outOfBoundaryAmount
+    }
+
+    set _outOfBoundaryAmount(value: cc.Vec2){
+        this.scrollView._outOfBoundaryAmount = value
+    }
+
+    get _outOfBoundaryAmountDirty(): boolean{
+        return this.scrollView._outOfBoundaryAmountDirty
+    }
+
+    set _outOfBoundaryAmountDirty( value: boolean) {
+        this.scrollView._outOfBoundaryAmountDirty = value
+    }
+
     // 重写该函数实现边界回弹
     _getHowMuchOutOfBoundary (addition: cc.Vec2){
         addition = addition || cc.v2(0, 0);
@@ -580,34 +645,39 @@ export default class LoopList extends cc.ScrollView {
             return this._outOfBoundaryAmount;
         }
         let outOfBoundaryAmount = cc.v2(0, 0);
-        if( this.horizontal){ 
-            /// 水平模式左右边界
-            outOfBoundaryAmount.y = 0
-            let left = this._getContentLeftBoundary() + addition.x
-            let right = this._getContentRightBoundary() + addition.x
-            if( left > this._leftBoundary) {
-                outOfBoundaryAmount.x = this._leftBoundary - left
-            } else if( right < this._rightBoundary) {
-                outOfBoundaryAmount.x = this._rightBoundary - right;
-                let temp = left + outOfBoundaryAmount.x
-                if( this._items.length > 0 && this._items[0].itemIdx === 0 && temp >= this._leftBoundary) {
+        switch( this.movement) {
+            case Movement.Horizontal: {
+                /// 水平模式左右边界
+                outOfBoundaryAmount.y = 0
+                let left = this._getContentLeftBoundary() + addition.x
+                let right = this._getContentRightBoundary() + addition.x
+                if( left > this._leftBoundary) {
                     outOfBoundaryAmount.x = this._leftBoundary - left
+                } else if( right < this._rightBoundary) {
+                    outOfBoundaryAmount.x = this._rightBoundary - right;
+                    let temp = left + outOfBoundaryAmount.x
+                    if( this._items.length > 0 && this._items[0].itemIdx === 0 && temp >= this._leftBoundary) {
+                        outOfBoundaryAmount.x = this._leftBoundary - left
+                    }
                 }
+                break
             }
-        } else { 
-            ///  垂直模式上下边界
-            outOfBoundaryAmount.x = 0
-            let top = this._getContentTopBoundary() + addition.y
-            let bottom = this._getContentBottomBoundary() + addition.y
-            if ( top < this._topBoundary) {
-                outOfBoundaryAmount.y = this._topBoundary - top
-            } else if (bottom > this._bottomBoundary) {
-                outOfBoundaryAmount.y = this._bottomBoundary - bottom;
-                /// 判断第一条item 落下来是否会超过 topboundary 如果超过要重新计算
-                let temp = top + outOfBoundaryAmount.y
-                if( this._items.length > 0 && this._items[0].itemIdx === 0 && temp <= this._topBoundary) {
+            case Movement.Vertical:{
+                ///  垂直模式上下边界
+                outOfBoundaryAmount.x = 0
+                let top = this._getContentTopBoundary() + addition.y
+                let bottom = this._getContentBottomBoundary() + addition.y
+                if ( top < this._topBoundary) {
                     outOfBoundaryAmount.y = this._topBoundary - top
+                } else if (bottom > this._bottomBoundary) {
+                    outOfBoundaryAmount.y = this._bottomBoundary - bottom;
+                    /// 判断第一条item 落下来是否会超过 topboundary 如果超过要重新计算
+                    let temp = top + outOfBoundaryAmount.y
+                    if( this._items.length > 0 && this._items[0].itemIdx === 0 && temp <= this._topBoundary) {
+                        outOfBoundaryAmount.y = this._topBoundary - top
+                    }
                 }
+                break
             }
         }
         /// ？？？
