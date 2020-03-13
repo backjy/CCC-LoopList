@@ -62,6 +62,7 @@ export default class LoopList extends cc.Component {
         /// 重定向scrollview 函数
         this.scrollView._getHowMuchOutOfBoundary = this._getHowMuchOutOfBoundary.bind(this)
         this.scrollView._calculateBoundary = this._calculateBoundary.bind(this)
+        this.scrollView._clampDelta = this._clampDelta.bind(this)
         if( this.content) {
             /// initialize content view
             let anch = this.scrollView.horizontal? cc.v2( 0, 0.5): cc.v2( 0.5, 1)
