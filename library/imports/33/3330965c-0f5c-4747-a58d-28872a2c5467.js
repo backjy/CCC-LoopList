@@ -3,7 +3,7 @@ cc._RF.push(module, '33309ZcD1xHR6WNKIcqLFRn', 'Touchable');
 // looplist/Touchable.ts
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property;
+var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property, menu = _a.menu;
 /// 点击间隔
 var click_interval = 1;
 var Touchable = /** @class */ (function (_super) {
@@ -73,7 +73,8 @@ var Touchable = /** @class */ (function (_super) {
         property(cc.AudioClip)
     ], Touchable.prototype, "audioClip", void 0);
     Touchable = __decorate([
-        ccclass
+        ccclass,
+        menu("UIExtension/Touchable")
     ], Touchable);
     return Touchable;
 }(cc.Component));

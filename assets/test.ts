@@ -53,7 +53,7 @@ export default class test extends cc.Component {
         }
         
         this.showFrist.clicked = ()=>{
-            this.list.showItem( 0)
+            this.list.showItem( 0, true)
         }
         
         this.showMid.clicked = ()=>{
@@ -68,8 +68,15 @@ export default class test extends cc.Component {
 
     onCreateItem( list: LoopList, idx: number) {
         console.log(`${this.name} show idx: ${idx}`)
-        let item = this.list.getItem()
+        let item = this.list.getNewItem()
         item.getComponent(cc.Label).string = `this\nis\n${idx}`
+        let touchable = item.getComponent( Touchable)
+        if( touchable && touchable.clicked == null) {
+            touchable.clicked = ()=>{
+                console.log( `on clicked: ${item.itemIdx}`)
+            }
+        }
+
         return item
     }
     // update (dt) {}

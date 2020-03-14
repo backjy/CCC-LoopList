@@ -41,7 +41,7 @@ var test = /** @class */ (function (_super) {
             _this.list.setItemCount(_this.count);
         };
         this.showFrist.clicked = function () {
-            _this.list.showItem(0);
+            _this.list.showItem(0, true);
         };
         this.showMid.clicked = function () {
             console.log("show item:", Math.floor(_this.count / 2));
@@ -53,8 +53,14 @@ var test = /** @class */ (function (_super) {
     };
     test.prototype.onCreateItem = function (list, idx) {
         console.log(this.name + " show idx: " + idx);
-        var item = this.list.getItem();
+        var item = this.list.getNewItem();
         item.getComponent(cc.Label).string = "this\nis\n" + idx;
+        var touchable = item.getComponent(Touchable_1.default);
+        if (touchable && touchable.clicked == null) {
+            touchable.clicked = function () {
+                console.log("on clicked: " + item.itemIdx);
+            };
+        }
         return item;
     };
     __decorate([

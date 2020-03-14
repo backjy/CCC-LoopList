@@ -3,7 +3,7 @@ cc._RF.push(module, '7392bBLh4NAwLoZSiKHSTnO', 'LoopListItem');
 // looplist/LoopListItem.ts
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property;
+var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property, menu = _a.menu;
 var LoopListItem = /** @class */ (function (_super) {
     __extends(LoopListItem, _super);
     function LoopListItem() {
@@ -51,7 +51,8 @@ var LoopListItem = /** @class */ (function (_super) {
         property(cc.Float)
     ], LoopListItem.prototype, "padding", void 0);
     LoopListItem = __decorate([
-        ccclass
+        ccclass,
+        menu("UIExtension/LoopListItem")
     ], LoopListItem);
     return LoopListItem;
 }(cc.Component));

@@ -23,6 +23,9 @@ export default class LoopList extends cc.Component {
     @property( cc.Integer)
     private frameCreateMax: number = 30
 
+    @property( cc.Float)
+    private scrollSpeedMax: number = 10
+
     /// item 缓存池
     private _itemPool: { [key:string]: LoopListItem[]} = null
     private _templates: {[key:string]: LoopListItem} = {}
@@ -44,6 +47,13 @@ export default class LoopList extends cc.Component {
     private _bottomBoundary: number = 0 
     private _rightBoundary: number  = 0
     private _topBoundary: number    = 0
+    /// 标记item size 是否变化
+    private _itemSizeDirty: boolean = true
+    /// 标记item 是否需要更新（创建或回收）
+    private _itemDirty: boolean = false
+    /// 滑动移动时用到的控制变量 展示item 到idx
+    private animeIdx: number = 0
+    private bAnimeMoveing: boolean = false
 
     /// 视口
     @property( cc.ScrollView)
@@ -92,13 +102,12 @@ export default class LoopList extends cc.Component {
     /// 设置当前item count 如果不是强制Reset
     /// 那么大于等于当前itemcout || 最后一项item不是 当前item 自动使用刷新方式不会修改当前item 的显示位置
     setItemCount( count: number, bReset: boolean = false) {
+        let oldcount = this._totalcount
+        this._totalcount = count
         if( bReset) { 
-            this.setContentPosition( cc.Vec2.ZERO) 
-            this._totalcount = count
-            this.showItem( 0)
+            this._recycleAllItems( true)
+            this._updateListView()
         } else {
-            let oldcount = this._totalcount
-            this._totalcount = count
             /// 如果新的item count 大于 oldItemcount那么大于等于当前itemcout
             let lastItem = this._items.length > 0? this._items[ this._items.length-1]: null
             if( count >= oldcount || (lastItem != null && lastItem.itemIdx < (count -1))) {
@@ -125,16 +134,13 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    /// 直接展示item 到idx
-    private animeIdx: number = 0
-    private bAnimeMoveing: boolean = false
     showItem( idx: number, bAnime: boolean = false) {
         // 限定到 0 - （totalcount -1）范围内
         idx = Math.min( this._totalcount - 1, Math.max(0, idx)) 
         if( bAnime) {
-            // this.animeIdx = idx;
-            // this.bAnimeMoveing = true;
-            // this.scrollToBottom( 1)
+            this.scrollView.stopAutoScroll()
+            this.animeIdx = idx;
+            this.bAnimeMoveing = true;
         } else {
             /// 回收所有items 从新创建top item
             switch( this.movement){
@@ -149,7 +155,7 @@ export default class LoopList extends cc.Component {
     }
 
     /// 获取一个item 
-    getItem( key: string = null): LoopListItem {
+    getNewItem( key: string = null): LoopListItem {
         key = key || this._template
         let pool = this._itemPool[key]
         let instance: LoopListItem = (pool && pool.length > 0)? pool.pop(): null
@@ -164,43 +170,33 @@ export default class LoopList extends cc.Component {
         return instance
     }
 
-    private _itemSizeDirty: boolean = true
     itemSizeChanged() {
         this._itemSizeDirty = true
     }
 
-    private _itemDirty: boolean = false
     onScrolling() {
         this._itemDirty = true
+        this.bAnimeMoveing = false
     }
 
     update( dt: number) {
-        if( this._itemSizeDirty) {
-            this._itemSizeDirty = false
-            switch( this.movement){
-                case Movement.Horizontal:
-                    this._updateHorizontalItems()
-                    break
-                case Movement.Vertical:
-                    this._updateVerticalItems()
-                    break
-            }
+        /// 动画移动
+        this.bAnimeMoveing = this._scrolling? false: this.bAnimeMoveing
+        switch( this.movement){
+            case Movement.Horizontal:
+                this._itemSizeDirty && this._updateHorizontalItems() /// check item size dirty
+                this.bAnimeMoveing && this._scrollToItemHor( this.animeIdx) /// check auto moveing
+                break
+            case Movement.Vertical:
+                this._itemSizeDirty && this._updateVerticalItems()
+                this.bAnimeMoveing && this._scrollToItemVer( this.animeIdx)
+                break
         }
+        this._itemSizeDirty = false
+        /// create || recycle item
         if( this._itemDirty) {
             this._itemDirty = false
             this._updateListView()
-        }
-        /// 动画移动
-        // this.bAnimeMoveing = this._scro
-        if( this.bAnimeMoveing) {
-            switch( this.movement){
-                case Movement.Horizontal:
-                    this._animeShowItemHor( this.animeIdx)
-                    break
-                case Movement.Vertical:
-                    this._animeShowItemVer( this.animeIdx)
-                    break
-            }
         }
     }
 
@@ -227,13 +223,15 @@ export default class LoopList extends cc.Component {
     }
 
     private _showItemVer( idx: number) {
-        /// 判断第一个和最后一个都在窗口内就不用执行了
-        let frist = this._items[0]
-        let last = this._items[this._items.length -1]
-        if( frist.itemIdx === 0 && last.itemIdx === (this._totalcount-1) &&
-                this._getItemTop( frist) <= this._topBoundary &&
-                    this._getItemBottom( last) >= this._bottomBoundary){
+        /// 判断需要现实的item和最后一个都在窗口内就不用执行了
+        if( this._items.length > 0) {
+            let frist = this._getItemAt( idx)
+            let last = this._items[this._items.length -1]
+            if( frist!= null && last.itemIdx === (this._totalcount-1) &&
+                    this._getItemTop( frist) <= this._topBoundary &&
+                        this._getItemBottom( last) >= this._bottomBoundary){
                 return
+            }
         }
         /// 回收当前所有item & reset content position
         this._recycleAllItems( true)
@@ -252,24 +250,26 @@ export default class LoopList extends cc.Component {
                             let top = this._getItemTop( titem)
                             if( top < this._topBoundary) {
                                 this.content.y = this.content.y + (this._topBoundary - top)
-                                /// 标记item 需要重新创建回收
-                                this._itemDirty = true
                             }
                         }
                     }
+                    /// 标记item 需要重新创建回收
+                    this._itemDirty = true
                 }
             }
         }
     }
 
     private _showItemHor( idx: number){
-        /// 判断第一个和最后一个都在窗口内就不用执行了
-        let frist = this._items[0]
-        let last = this._items[this._items.length -1]
-        if( frist.itemIdx === 0 && last.itemIdx === (this._totalcount-1) &&
-                this._getItemLeft( frist) >= this._leftBoundary &&
-                    this._getItemRight( last) <= this._rightBoundary){
+        /// 判断需要显示的item和最后一个都在窗口内就不用执行了
+        if( this._items.length > 0) {
+            let frist = this._getItemAt( idx)
+            let last = this._items[this._items.length -1]
+            if( frist!= null && last.itemIdx === (this._totalcount-1) &&
+                    this._getItemLeft( frist) >= this._leftBoundary &&
+                        this._getItemRight( last) <= this._rightBoundary){
                 return
+            }
         }
         /// 回收当前所有item & reset content position
         this._recycleAllItems( true)
@@ -285,25 +285,82 @@ export default class LoopList extends cc.Component {
                         let titem = this._items[0]
                         if( titem.itemIdx === 0) {
                             let left = this._getItemLeft( titem)
-                            // console.log("create left items!", left, )
                             if( left > this._leftBoundary) {
                                 this.content.x = this.content.x - (left - this._leftBoundary)
-                                /// 标记item 需要重新创建回收
-                                this._itemDirty = true
                             }
                         }
                     }
+                    /// 标记item 需要重新创建回收
+                    this._itemDirty = true
                 }
             }
         }
     }
 
-    private _animeShowItemVer( idx: number){
-
+    private _scrollToItemHor( idx: number) {
+        let item = this._getItemAt( idx)
+        let offset = 0
+        if( item == null) {
+            offset = this._items[0].itemIdx > idx? this.scrollSpeedMax: -this.scrollSpeedMax
+        } else {
+            offset = this._leftBoundary - this._getItemLeft( item)
+            if( idx === (this._totalcount - 1)) {
+                offset = this._rightBoundary - this._getItemRight( item)
+                offset = offset >= 0? 0: offset
+            } else {
+                let last = this._items[ this._items.length - 1]
+                if( last.itemIdx === (this._totalcount - 1) && 
+                    this._getItemRight( last) <= this._rightBoundary)  {
+                    offset = 0
+                }
+            }
+        }
+        /// 判断是否为0
+        this.bAnimeMoveing = Math.abs( offset) > EPSILON
+        if( offset > this.scrollSpeedMax || offset < -this.scrollSpeedMax) {
+            offset = Math.min( this.scrollSpeedMax, Math.max( -this.scrollSpeedMax, offset))
+        } else {
+            /// 做个线性插值更平滑
+        }
+        if( offset !== 0) {
+            this._itemDirty = true
+            this.scrollView._moveContent( cc.v2( offset, 0), true)
+        } else {
+            this.scrollView.stopAutoScroll()
+        }
     }
 
-    private _animeShowItemHor( idx: number) {
-
+    private _scrollToItemVer( idx: number){
+        let item = this._getItemAt( idx)
+        let offset = 0
+        if( item == null) {
+            offset = this._items[0].itemIdx > idx? -this.scrollSpeedMax: this.scrollSpeedMax
+        } else {
+            offset = this._topBoundary - this._getItemTop( item)
+            if( idx === (this._totalcount - 1)) {
+                offset = this._bottomBoundary - this._getItemBottom( item) 
+                offset = offset <= 0? 0: offset
+            } else {
+                let last = this._items[ this._items.length - 1]
+                if( last.itemIdx === (this._totalcount - 1) && 
+                    this._getItemBottom( last) <= this._rightBoundary)  {
+                    offset = 0
+                } 
+            }
+        }
+        /// 判断是否为0
+        this.bAnimeMoveing = Math.abs( offset) > EPSILON
+        if( offset > this.scrollSpeedMax || offset < -this.scrollSpeedMax) {
+            offset = Math.min( this.scrollSpeedMax, Math.max( -this.scrollSpeedMax, offset))
+        } else {
+            /// 做个线性插值更平滑
+        }
+        if( offset !== 0) {
+            this._itemDirty = true
+            this.scrollView._moveContent( cc.v2( 0, offset), true)
+        } else {
+            this.scrollView.stopAutoScroll()
+        }
     }
 
     private _recycle(item: LoopListItem) {
@@ -319,11 +376,8 @@ export default class LoopList extends cc.Component {
             this._recycle( item)
         });
         this._items = []
-        if( reset) { this.setContentPosition( cc.Vec2.ZERO)
-            // this.scrollView.stopAutoScroll()
-            // this.scroll
-            // this.content.position = cc.Vec2.ZERO
-        }
+        this.scrollView.stopAutoScroll()
+        reset && this.setContentPosition( cc.Vec2.ZERO)
     }
 
     private _createNewItem( idx: number): LoopListItem {
@@ -367,31 +421,10 @@ export default class LoopList extends cc.Component {
     }
 
     private _updateListView( idx: number = 0, pos: number = null) {
-        /// recycle all items
-        if( this._totalcount == 0 && this._items.length > 0) {
-            this._recycleAllItems( true)
-            return false
-        }
         /// cur count
         let checkcount = 0
-        let create: ( idx: number, pos: number)=> LoopListItem  = null
-        let call: ()=>boolean = null
-        switch( this.movement) {
-            case Movement.Horizontal:
-                create = this._createLeftItem; 
-                call = this._updateHorizontal;
-                break
-            case Movement.Vertical:
-                create = this._createTopItem;
-                 call = this._updateVertical;
-                break
-        }
-        /// check top item
-        if( this._items.length === 0 && create.call( this, idx, pos) == null) {
-            return false
-        }
-        /// create other items
-        while( call.call( this)) {
+        let create = this.movement === Movement.Horizontal? this._updateHorizontal: this._updateVertical
+        while( create.call( this, idx, pos)) {
             if( ++checkcount >= this.frameCreateMax) {
                 this._itemDirty = true
             }
@@ -424,14 +457,18 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _updateVertical() : boolean {
-        // if( this._checkRecycle() ) { return false}
-        // /// fill up & fill down
+    private _updateVertical( idx: number, pos: number) : boolean {
         let curCount = this._items.length
-        // if( curCount === 0) {
-        //     let item = this._createTopItem(0)
-        //     return item != null
-        // }
+        /// recycle all items
+        if( this._totalcount == 0 && curCount > 0) {
+            this._recycleAllItems( true)
+            return false
+        }
+        /// fill up & fill down
+        if( curCount === 0) {
+            let item = this._createTopItem( idx, pos)
+            return item != null
+        }
         /// recycle top item 回收顶部数据 如果最底下的item 是最后一条那么不回收上面的item
         let topitem = this._items[0]
         let bottomitem = this._items[ curCount-1]
@@ -496,13 +533,18 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _updateHorizontal(): boolean{
-        // if( this._checkRecycle()) { return false}
+    private _updateHorizontal( idx: number, pos: number): boolean{
         let curCount = this._items.length
-        // if( curCount == 0) {
-        //     let item = this._createLeftItem(0)
-        //     return item != null? true: false
-        // }
+        /// recycle all items
+        if( this._totalcount == 0 && curCount > 0) {
+            this._recycleAllItems( true)
+            return false
+        }
+        /// fill up & fill down
+        if( curCount == 0) {
+            let item = this._createLeftItem( idx, pos)
+            return item != null? true: false
+        }
         /// fill left & fill right
         let leftItem = this._items[0]
         let rightItem = this._items[ curCount-1]
@@ -542,15 +584,7 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    //// 下面的函数都是重写scrollview 原有的函数
-
-    //// stop anime moveing on touch began
-    // _onTouchBegan( event: cc.Event, captureListeners: any){
-    //     super._onTouchBegan( event, captureListeners)
-    //     if( event.isStopped){ this.bAnimeMoveing = false }
-    // }
-
-    /// 计算边界
+    /// 计算边界 下面的函数都是重写scrollview 原有的函数
     _calculateBoundary(){
         if (this.content) {
             this.content.setContentSize( cc.size( this.viewPort.width, this.viewPort.height))
@@ -558,16 +592,18 @@ export default class LoopList extends cc.Component {
             let viewSize = this.viewPort.getContentSize();
             let anchorX = viewSize.width * this.viewPort.anchorX;
             let anchorY = viewSize.height * this.viewPort.anchorY;
-            /// 计算上下左右边界
+            /// 计算上下左右窗口边界
             this._leftBoundary  = -anchorX;
             this._bottomBoundary = -anchorY;
             this._rightBoundary = this._leftBoundary + viewSize.width;
             this._topBoundary   = this._bottomBoundary + viewSize.height;
-            /// 计算回收边界
+            /// 计算上下左右 回收|创建 边界
             this.leftBoundary   = this._leftBoundary - this.cacheBoundary
             this.rightBoundary  = this._rightBoundary + this.cacheBoundary
             this.topBoundary    = this._topBoundary + this.cacheBoundary
             this.bottomBoundary = this._bottomBoundary - this.cacheBoundary
+
+            // console.log( "boundary:", this._topBoundary, this._bottomBoundary)
         }
     }
 
@@ -622,22 +658,6 @@ export default class LoopList extends cc.Component {
         return this._bottomBoundary
     }
 
-    get _outOfBoundaryAmount(): cc.Vec2{
-        return this.scrollView._outOfBoundaryAmount
-    }
-
-    set _outOfBoundaryAmount(value: cc.Vec2){
-        this.scrollView._outOfBoundaryAmount = value
-    }
-
-    get _outOfBoundaryAmountDirty(): boolean{
-        return this.scrollView._outOfBoundaryAmountDirty
-    }
-
-    set _outOfBoundaryAmountDirty( value: boolean) {
-        this.scrollView._outOfBoundaryAmountDirty = value
-    }
-
     // 重写该函数实现边界回弹
     _getHowMuchOutOfBoundary (addition: cc.Vec2){
         addition = addition || cc.v2(0, 0);
@@ -688,6 +708,27 @@ export default class LoopList extends cc.Component {
         }
         outOfBoundaryAmount = this._clampDelta(outOfBoundaryAmount);
         return outOfBoundaryAmount;
+    }
+    
+    /// 获取scrollview 的私有属性
+    get _outOfBoundaryAmount(): cc.Vec2{
+        return this.scrollView._outOfBoundaryAmount
+    }
+
+    set _outOfBoundaryAmount(value: cc.Vec2){
+        this.scrollView._outOfBoundaryAmount = value
+    }
+
+    get _outOfBoundaryAmountDirty(): boolean{
+        return this.scrollView._outOfBoundaryAmountDirty
+    }
+
+    set _outOfBoundaryAmountDirty( value: boolean) {
+        this.scrollView._outOfBoundaryAmountDirty = value
+    }
+
+    get _scrolling(){
+        return this.scrollView._scrolling
     }
 }
 

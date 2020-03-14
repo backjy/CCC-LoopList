@@ -19,6 +19,7 @@ var LoopList = /** @class */ (function (_super) {
         _this.movement = Movement.Vertical;
         _this.cacheBoundary = 200;
         _this.frameCreateMax = 30;
+        _this.scrollSpeedMax = 10;
         /// item 缓存池
         _this._itemPool = null;
         _this._templates = {};
@@ -39,13 +40,15 @@ var LoopList = /** @class */ (function (_super) {
         _this._bottomBoundary = 0;
         _this._rightBoundary = 0;
         _this._topBoundary = 0;
-        /// 视口
-        _this.scrollView = null;
-        /// 直接展示item 到idx
+        /// 标记item size 是否变化
+        _this._itemSizeDirty = true;
+        /// 标记item 是否需要更新（创建或回收）
+        _this._itemDirty = false;
+        /// 滑动移动时用到的控制变量 展示item 到idx
         _this.animeIdx = 0;
         _this.bAnimeMoveing = false;
-        _this._itemSizeDirty = true;
-        _this._itemDirty = false;
+        /// 视口
+        _this.scrollView = null;
         return _this;
     }
     Object.defineProperty(LoopList.prototype, "content", {
@@ -69,6 +72,7 @@ var LoopList = /** @class */ (function (_super) {
         /// 重定向scrollview 函数
         this.scrollView._getHowMuchOutOfBoundary = this._getHowMuchOutOfBoundary.bind(this);
         this.scrollView._calculateBoundary = this._calculateBoundary.bind(this);
+        this.scrollView._clampDelta = this._clampDelta.bind(this);
         if (this.content) {
             /// initialize content view
             var anch = this.scrollView.horizontal ? cc.v2(0, 0.5) : cc.v2(0.5, 1);
@@ -96,14 +100,13 @@ var LoopList = /** @class */ (function (_super) {
     /// 那么大于等于当前itemcout || 最后一项item不是 当前item 自动使用刷新方式不会修改当前item 的显示位置
     LoopList.prototype.setItemCount = function (count, bReset) {
         if (bReset === void 0) { bReset = false; }
+        var oldcount = this._totalcount;
+        this._totalcount = count;
         if (bReset) {
-            this.setContentPosition(cc.Vec2.ZERO);
-            this._totalcount = count;
-            this.showItem(0);
+            this._recycleAllItems(true);
+            this._updateListView();
         }
         else {
-            var oldcount = this._totalcount;
-            this._totalcount = count;
             /// 如果新的item count 大于 oldItemcount那么大于等于当前itemcout
             var lastItem = this._items.length > 0 ? this._items[this._items.length - 1] : null;
             if (count >= oldcount || (lastItem != null && lastItem.itemIdx < (count - 1))) {
@@ -135,9 +138,9 @@ var LoopList = /** @class */ (function (_super) {
         // 限定到 0 - （totalcount -1）范围内
         idx = Math.min(this._totalcount - 1, Math.max(0, idx));
         if (bAnime) {
-            // this.animeIdx = idx;
-            // this.bAnimeMoveing = true;
-            // this.scrollToBottom( 1)
+            this.scrollView.stopAutoScroll();
+            this.animeIdx = idx;
+            this.bAnimeMoveing = true;
         }
         else {
             /// 回收所有items 从新创建top item
@@ -152,7 +155,7 @@ var LoopList = /** @class */ (function (_super) {
         }
     };
     /// 获取一个item 
-    LoopList.prototype.getItem = function (key) {
+    LoopList.prototype.getNewItem = function (key) {
         if (key === void 0) { key = null; }
         key = key || this._template;
         var pool = this._itemPool[key];
@@ -172,34 +175,26 @@ var LoopList = /** @class */ (function (_super) {
     };
     LoopList.prototype.onScrolling = function () {
         this._itemDirty = true;
+        this.bAnimeMoveing = false;
     };
     LoopList.prototype.update = function (dt) {
-        if (this._itemSizeDirty) {
-            this._itemSizeDirty = false;
-            switch (this.movement) {
-                case Movement.Horizontal:
-                    this._updateHorizontalItems();
-                    break;
-                case Movement.Vertical:
-                    this._updateVerticalItems();
-                    break;
-            }
+        /// 动画移动
+        this.bAnimeMoveing = this._scrolling ? false : this.bAnimeMoveing;
+        switch (this.movement) {
+            case Movement.Horizontal:
+                this._itemSizeDirty && this._updateHorizontalItems(); /// check item size dirty
+                this.bAnimeMoveing && this._scrollToItemHor(this.animeIdx); /// check auto moveing
+                break;
+            case Movement.Vertical:
+                this._itemSizeDirty && this._updateVerticalItems();
+                this.bAnimeMoveing && this._scrollToItemVer(this.animeIdx);
+                break;
         }
+        this._itemSizeDirty = false;
+        /// create || recycle item
         if (this._itemDirty) {
             this._itemDirty = false;
             this._updateListView();
-        }
-        /// 动画移动
-        // this.bAnimeMoveing = this._scro
-        if (this.bAnimeMoveing) {
-            switch (this.movement) {
-                case Movement.Horizontal:
-                    this._animeShowItemHor(this.animeIdx);
-                    break;
-                case Movement.Vertical:
-                    this._animeShowItemVer(this.animeIdx);
-                    break;
-            }
         }
     };
     LoopList.prototype._initializePool = function () {
@@ -224,13 +219,15 @@ var LoopList = /** @class */ (function (_super) {
         }
     };
     LoopList.prototype._showItemVer = function (idx) {
-        /// 判断第一个和最后一个都在窗口内就不用执行了
-        var frist = this._items[0];
-        var last = this._items[this._items.length - 1];
-        if (frist.itemIdx === 0 && last.itemIdx === (this._totalcount - 1) &&
-            this._getItemTop(frist) <= this._topBoundary &&
-            this._getItemBottom(last) >= this._bottomBoundary) {
-            return;
+        /// 判断需要现实的item和最后一个都在窗口内就不用执行了
+        if (this._items.length > 0) {
+            var frist = this._getItemAt(idx);
+            var last = this._items[this._items.length - 1];
+            if (frist != null && last.itemIdx === (this._totalcount - 1) &&
+                this._getItemTop(frist) <= this._topBoundary &&
+                this._getItemBottom(last) >= this._bottomBoundary) {
+                return;
+            }
         }
         /// 回收当前所有item & reset content position
         this._recycleAllItems(true);
@@ -249,23 +246,25 @@ var LoopList = /** @class */ (function (_super) {
                             var top = this._getItemTop(titem);
                             if (top < this._topBoundary) {
                                 this.content.y = this.content.y + (this._topBoundary - top);
-                                /// 标记item 需要重新创建回收
-                                this._itemDirty = true;
                             }
                         }
                     }
+                    /// 标记item 需要重新创建回收
+                    this._itemDirty = true;
                 }
             }
         }
     };
     LoopList.prototype._showItemHor = function (idx) {
-        /// 判断第一个和最后一个都在窗口内就不用执行了
-        var frist = this._items[0];
-        var last = this._items[this._items.length - 1];
-        if (frist.itemIdx === 0 && last.itemIdx === (this._totalcount - 1) &&
-            this._getItemLeft(frist) >= this._leftBoundary &&
-            this._getItemRight(last) <= this._rightBoundary) {
-            return;
+        /// 判断需要显示的item和最后一个都在窗口内就不用执行了
+        if (this._items.length > 0) {
+            var frist = this._getItemAt(idx);
+            var last = this._items[this._items.length - 1];
+            if (frist != null && last.itemIdx === (this._totalcount - 1) &&
+                this._getItemLeft(frist) >= this._leftBoundary &&
+                this._getItemRight(last) <= this._rightBoundary) {
+                return;
+            }
         }
         /// 回收当前所有item & reset content position
         this._recycleAllItems(true);
@@ -281,21 +280,88 @@ var LoopList = /** @class */ (function (_super) {
                         var titem = this._items[0];
                         if (titem.itemIdx === 0) {
                             var left = this._getItemLeft(titem);
-                            // console.log("create left items!", left, )
                             if (left > this._leftBoundary) {
                                 this.content.x = this.content.x - (left - this._leftBoundary);
-                                /// 标记item 需要重新创建回收
-                                this._itemDirty = true;
                             }
                         }
                     }
+                    /// 标记item 需要重新创建回收
+                    this._itemDirty = true;
                 }
             }
         }
     };
-    LoopList.prototype._animeShowItemVer = function (idx) {
+    LoopList.prototype._scrollToItemHor = function (idx) {
+        var item = this._getItemAt(idx);
+        var offset = 0;
+        if (item == null) {
+            offset = this._items[0].itemIdx > idx ? this.scrollSpeedMax : -this.scrollSpeedMax;
+        }
+        else {
+            offset = this._leftBoundary - this._getItemLeft(item);
+            if (idx === (this._totalcount - 1)) {
+                offset = this._rightBoundary - this._getItemRight(item);
+                offset = offset >= 0 ? 0 : offset;
+            }
+            else {
+                var last = this._items[this._items.length - 1];
+                if (last.itemIdx === (this._totalcount - 1) &&
+                    this._getItemRight(last) <= this._rightBoundary) {
+                    offset = 0;
+                }
+            }
+        }
+        /// 判断是否为0
+        this.bAnimeMoveing = Math.abs(offset) > EPSILON;
+        if (offset > this.scrollSpeedMax || offset < -this.scrollSpeedMax) {
+            offset = Math.min(this.scrollSpeedMax, Math.max(-this.scrollSpeedMax, offset));
+        }
+        else {
+            /// 做个线性插值更平滑
+        }
+        if (offset !== 0) {
+            this._itemDirty = true;
+            this.scrollView._moveContent(cc.v2(offset, 0), true);
+        }
+        else {
+            this.scrollView.stopAutoScroll();
+        }
     };
-    LoopList.prototype._animeShowItemHor = function (idx) {
+    LoopList.prototype._scrollToItemVer = function (idx) {
+        var item = this._getItemAt(idx);
+        var offset = 0;
+        if (item == null) {
+            offset = this._items[0].itemIdx > idx ? -this.scrollSpeedMax : this.scrollSpeedMax;
+        }
+        else {
+            offset = this._topBoundary - this._getItemTop(item);
+            if (idx === (this._totalcount - 1)) {
+                offset = this._bottomBoundary - this._getItemBottom(item);
+                offset = offset <= 0 ? 0 : offset;
+            }
+            else {
+                var last = this._items[this._items.length - 1];
+                if (last.itemIdx === (this._totalcount - 1) &&
+                    this._getItemBottom(last) <= this._rightBoundary) {
+                    offset = 0;
+                }
+            }
+        }
+        /// 判断是否为0
+        this.bAnimeMoveing = Math.abs(offset) > EPSILON;
+        if (offset > this.scrollSpeedMax || offset < -this.scrollSpeedMax) {
+            offset = Math.min(this.scrollSpeedMax, Math.max(-this.scrollSpeedMax, offset));
+        }
+        else {
+            /// 做个线性插值更平滑
+        }
+        if (offset !== 0) {
+            this._itemDirty = true;
+            this.scrollView._moveContent(cc.v2(0, offset), true);
+        }
+        else {
+            this.scrollView.stopAutoScroll();
+        }
     };
     LoopList.prototype._recycle = function (item) {
         var pool = this._itemPool[item.itemKey];
@@ -313,12 +379,8 @@ var LoopList = /** @class */ (function (_super) {
             _this._recycle(item);
         });
         this._items = [];
-        if (reset) {
-            this.setContentPosition(cc.Vec2.ZERO);
-            // this.scrollView.stopAutoScroll()
-            // this.scroll
-            // this.content.position = cc.Vec2.ZERO
-        }
+        this.scrollView.stopAutoScroll();
+        reset && this.setContentPosition(cc.Vec2.ZERO);
     };
     LoopList.prototype._createNewItem = function (idx) {
         if (idx < 0 || idx >= this._totalcount)
@@ -359,31 +421,10 @@ var LoopList = /** @class */ (function (_super) {
     LoopList.prototype._updateListView = function (idx, pos) {
         if (idx === void 0) { idx = 0; }
         if (pos === void 0) { pos = null; }
-        /// recycle all items
-        if (this._totalcount == 0 && this._items.length > 0) {
-            this._recycleAllItems(true);
-            return false;
-        }
         /// cur count
         var checkcount = 0;
-        var create = null;
-        var call = null;
-        switch (this.movement) {
-            case Movement.Horizontal:
-                create = this._createLeftItem;
-                call = this._updateHorizontal;
-                break;
-            case Movement.Vertical:
-                create = this._createTopItem;
-                call = this._updateVertical;
-                break;
-        }
-        /// check top item
-        if (this._items.length === 0 && create.call(this, idx, pos) == null) {
-            return false;
-        }
-        /// create other items
-        while (call.call(this)) {
+        var create = this.movement === Movement.Horizontal ? this._updateHorizontal : this._updateVertical;
+        while (create.call(this, idx, pos)) {
             if (++checkcount >= this.frameCreateMax) {
                 this._itemDirty = true;
             }
@@ -415,14 +456,18 @@ var LoopList = /** @class */ (function (_super) {
             }
         }
     };
-    LoopList.prototype._updateVertical = function () {
-        // if( this._checkRecycle() ) { return false}
-        // /// fill up & fill down
+    LoopList.prototype._updateVertical = function (idx, pos) {
         var curCount = this._items.length;
-        // if( curCount === 0) {
-        //     let item = this._createTopItem(0)
-        //     return item != null
-        // }
+        /// recycle all items
+        if (this._totalcount == 0 && curCount > 0) {
+            this._recycleAllItems(true);
+            return false;
+        }
+        /// fill up & fill down
+        if (curCount === 0) {
+            var item = this._createTopItem(idx, pos);
+            return item != null;
+        }
         /// recycle top item 回收顶部数据 如果最底下的item 是最后一条那么不回收上面的item
         var topitem = this._items[0];
         var bottomitem = this._items[curCount - 1];
@@ -486,13 +531,18 @@ var LoopList = /** @class */ (function (_super) {
             }
         }
     };
-    LoopList.prototype._updateHorizontal = function () {
-        // if( this._checkRecycle()) { return false}
+    LoopList.prototype._updateHorizontal = function (idx, pos) {
         var curCount = this._items.length;
-        // if( curCount == 0) {
-        //     let item = this._createLeftItem(0)
-        //     return item != null? true: false
-        // }
+        /// recycle all items
+        if (this._totalcount == 0 && curCount > 0) {
+            this._recycleAllItems(true);
+            return false;
+        }
+        /// fill up & fill down
+        if (curCount == 0) {
+            var item = this._createLeftItem(idx, pos);
+            return item != null ? true : false;
+        }
         /// fill left & fill right
         var leftItem = this._items[0];
         var rightItem = this._items[curCount - 1];
@@ -531,13 +581,7 @@ var LoopList = /** @class */ (function (_super) {
             }
         }
     };
-    //// 下面的函数都是重写scrollview 原有的函数
-    //// stop anime moveing on touch began
-    // _onTouchBegan( event: cc.Event, captureListeners: any){
-    //     super._onTouchBegan( event, captureListeners)
-    //     if( event.isStopped){ this.bAnimeMoveing = false }
-    // }
-    /// 计算边界
+    /// 计算边界 下面的函数都是重写scrollview 原有的函数
     LoopList.prototype._calculateBoundary = function () {
         if (this.content) {
             this.content.setContentSize(cc.size(this.viewPort.width, this.viewPort.height));
@@ -545,16 +589,17 @@ var LoopList = /** @class */ (function (_super) {
             var viewSize = this.viewPort.getContentSize();
             var anchorX = viewSize.width * this.viewPort.anchorX;
             var anchorY = viewSize.height * this.viewPort.anchorY;
-            /// 计算上下左右边界
+            /// 计算上下左右窗口边界
             this._leftBoundary = -anchorX;
             this._bottomBoundary = -anchorY;
             this._rightBoundary = this._leftBoundary + viewSize.width;
             this._topBoundary = this._bottomBoundary + viewSize.height;
-            /// 计算回收边界
+            /// 计算上下左右 回收|创建 边界
             this.leftBoundary = this._leftBoundary - this.cacheBoundary;
             this.rightBoundary = this._rightBoundary + this.cacheBoundary;
             this.topBoundary = this._topBoundary + this.cacheBoundary;
             this.bottomBoundary = this._bottomBoundary - this.cacheBoundary;
+            // console.log( "boundary:", this._topBoundary, this._bottomBoundary)
         }
     };
     /// 裁剪移动量
@@ -603,26 +648,6 @@ var LoopList = /** @class */ (function (_super) {
         }
         return this._bottomBoundary;
     };
-    Object.defineProperty(LoopList.prototype, "_outOfBoundaryAmount", {
-        get: function () {
-            return this.scrollView._outOfBoundaryAmount;
-        },
-        set: function (value) {
-            this.scrollView._outOfBoundaryAmount = value;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(LoopList.prototype, "_outOfBoundaryAmountDirty", {
-        get: function () {
-            return this.scrollView._outOfBoundaryAmountDirty;
-        },
-        set: function (value) {
-            this.scrollView._outOfBoundaryAmountDirty = value;
-        },
-        enumerable: true,
-        configurable: true
-    });
     // 重写该函数实现边界回弹
     LoopList.prototype._getHowMuchOutOfBoundary = function (addition) {
         addition = addition || cc.v2(0, 0);
@@ -676,6 +701,34 @@ var LoopList = /** @class */ (function (_super) {
         outOfBoundaryAmount = this._clampDelta(outOfBoundaryAmount);
         return outOfBoundaryAmount;
     };
+    Object.defineProperty(LoopList.prototype, "_outOfBoundaryAmount", {
+        /// 获取scrollview 的私有属性
+        get: function () {
+            return this.scrollView._outOfBoundaryAmount;
+        },
+        set: function (value) {
+            this.scrollView._outOfBoundaryAmount = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(LoopList.prototype, "_outOfBoundaryAmountDirty", {
+        get: function () {
+            return this.scrollView._outOfBoundaryAmountDirty;
+        },
+        set: function (value) {
+            this.scrollView._outOfBoundaryAmountDirty = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(LoopList.prototype, "_scrolling", {
+        get: function () {
+            return this.scrollView._scrolling;
+        },
+        enumerable: true,
+        configurable: true
+    });
     __decorate([
         property({ type: cc.Enum(Movement), serializable: true })
     ], LoopList.prototype, "movement", void 0);
@@ -685,6 +738,9 @@ var LoopList = /** @class */ (function (_super) {
     __decorate([
         property(cc.Integer)
     ], LoopList.prototype, "frameCreateMax", void 0);
+    __decorate([
+        property(cc.Float)
+    ], LoopList.prototype, "scrollSpeedMax", void 0);
     __decorate([
         property(cc.ScrollView)
     ], LoopList.prototype, "scrollView", void 0);

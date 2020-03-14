@@ -1,8 +1,9 @@
 import LoopList from "./LoopList";
 
-const {ccclass, property} = cc._decorator;
+const {ccclass, property, menu} = cc._decorator;
 
 @ccclass
+@menu("UIExtension/LoopListItem")
 export default class LoopListItem extends cc.Component {
     /// item start offset
     @property( cc.Float)

@@ -1,6 +1,6 @@
 
 (function () {
-var scripts = [{"deps":{"./assets/looplist/LoopListItem":2,"./assets/looplist/Touchable":3,"./assets/test":1,"./assets/looplist/LoopList":4},"path":"preview-scripts/__qc_index__.js"},{"deps":{"./looplist/LoopList":4,"./looplist/Touchable":3},"path":"preview-scripts/assets/test.js"},{"deps":{},"path":"preview-scripts/assets/looplist/LoopListItem.js"},{"deps":{},"path":"preview-scripts/assets/looplist/Touchable.js"},{"deps":{"./LoopListItem":2},"path":"preview-scripts/assets/looplist/LoopList.js"}];
+var scripts = [{"deps":{"./assets/looplist/LoopListItem":2,"./assets/looplist/Touchable":3,"./assets/looplist/LoopList":4,"./assets/test":1},"path":"preview-scripts/__qc_index__.js"},{"deps":{"./looplist/Touchable":3,"./looplist/LoopList":4},"path":"preview-scripts/assets/test.js"},{"deps":{},"path":"preview-scripts/assets/looplist/LoopListItem.js"},{"deps":{},"path":"preview-scripts/assets/looplist/Touchable.js"},{"deps":{"./LoopListItem":2},"path":"preview-scripts/assets/looplist/LoopList.js"}];
 var entries = ["preview-scripts/__qc_index__.js"];
 
 /**

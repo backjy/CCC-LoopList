@@ -1,12 +1,13 @@
 
 
 
-const {ccclass, property} = cc._decorator;
+const {ccclass, property, menu} = cc._decorator;
 
 /// 点击间隔
 const click_interval: number = 1
 
 @ccclass
+@menu("UIExtension/Touchable")
 export default class Touchable extends cc.Component{
     @property( cc.Boolean)
     public interactable: boolean = true
