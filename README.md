@@ -21,12 +21,13 @@
 * item 的padding（也就是item 之间的间距）
 * item 不修改位置刷新
 * 无动画显示指定index 的item
+* 滑动到指定 index 的item
 
 ## 使用方式
 ### Editor 中的注意事项
 * 创建一个ScrollView 然后添加一个LoopList 组件
 * 在 ScrollView 的 content 下添加需要的item 原型，并对其添加LoopListItem 组件（对于该组件可以继承添加一些自己的属性） 注意：横向的Item 注意一下锚点x请用0，竖向的item 注意锚点y设置为1。
-* 调整 遮罩层的位置 最好是用的widget 免得麻烦。（scrollView 调整都需要调整viewport）
+* 调整 遮罩层的位置 最好是用的widget 免得麻烦。（scrollView 都需要调整viewport）
   
 ### 代码中使用方式
 * 调用list 的initialize函数 传入创建函数，以及默认初始化item个默认为0
@@ -36,7 +37,6 @@
 * showItem 直接显示指定index 的item
 
 ## TODO
-* 滑动到指定 index 的item（这个优先，下面的Todo估计估计的不会实现）
 * page view （感觉直接用cc.PageView，不是很必须）
 * grid view （这个如果一行高度都固定的直接用一排里面方几个就可以了， 特殊的瀑布了那种没想通的是 item size 有改变后回到顶部会出现对不齐的情况该咋办没想好咋处理）
 * 下拉刷新，上拉刷新 （这个比较简单 给_getContentLeftBoundary 这4个函数对应的添加一个 offset 偏移量就和触发点就ok了）
