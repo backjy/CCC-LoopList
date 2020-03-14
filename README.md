@@ -28,6 +28,7 @@
 * 创建一个ScrollView 然后添加一个LoopList 组件
 * 在 ScrollView 的 content 下添加需要的item 原型，并对其添加LoopListItem 组件（对于该组件可以继承添加一些自己的属性） 注意：横向的Item 注意一下锚点x请用0，竖向的item 注意锚点y设置为1。
 * 调整 遮罩层的位置 最好是用的widget 免得麻烦。（scrollView 都需要调整viewport）
+* 在creator.d.ts 的ScrollView 加上 \[x:string\]:any 避免typescript 中报错
   
 ### 代码中使用方式
 * 调用list 的initialize函数 传入创建函数，以及默认初始化item个默认为0
