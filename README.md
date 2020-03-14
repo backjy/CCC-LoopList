@@ -32,6 +32,7 @@
   
 ### 代码中使用方式
 * 调用list 的initialize函数 传入创建函数，以及默认初始化item个默认为0
+* 在创建函数中使用 getNewItem 来得到一个新的item （内部会根据pool来循环利用或 instantiate 创建item）
 * setItemCount  设置当前item count 如果不是强制Reset
     那么大于等于当前itemcout || 最后一项item不是当前item 自动使用刷新方式不会修改当前item 的显示位置
 * refreshItems 重新创建当前已经创建的item，位置不变
