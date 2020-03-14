@@ -24,6 +24,10 @@ export default class LoopListItem extends cc.Component {
         this._idx = value
     }
     get itemIdx() { return this._idx}
+    /// 添加用户自定义绑定数据
+    private _userData: any = null
+    get userData(){ return this._userData }
+    set userData( value: any) { this._userData = value}
     
     /// current loop list
     looplist: LoopList = null 
