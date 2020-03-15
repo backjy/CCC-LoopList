@@ -22,6 +22,7 @@
 * item 不修改位置刷新
 * 无动画显示指定index 的item
 * 滑动到指定 index 的item
+* grid view （网格类型的视图 不支持动态高或宽）
 
 ## 使用方式
 ### Editor 中的注意事项
@@ -40,7 +41,6 @@
 
 ## TODO
 * page view （感觉直接用cc.PageView，不是很必须）
-* grid view （这个如果一行高度都固定的直接用一排里面方几个就可以了， 特殊的瀑布了那种没想通的是 item size 有改变后回到顶部会出现对不齐的情况该咋办没想好咋处理）
 * 下拉刷新，上拉刷新 （这个比较简单 给_getContentLeftBoundary 这4个函数对应的添加一个 offset 偏移量就和触发点就ok了）
 * scrollbar的控制接入（这个优先级很低）
 
