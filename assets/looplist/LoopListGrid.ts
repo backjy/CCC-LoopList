@@ -14,6 +14,10 @@ export default class LoopListGrid extends LoopList{
     /// grid item 开始位置
     centers: number[] = [];
 
+    start(){
+        this._itemSizeDirty = true
+    }
+
     /// 计算grid 的中心
     _calculateBoundary(){
         super._calculateBoundary()
@@ -156,18 +160,30 @@ export default class LoopListGrid extends LoopList{
     }
 
     _updateVerticalItems(){
-        // console.log("item size dirty")
-        // if( this._items.length > 1) {
-        //     let pitem = this._items[0]
-        //     for( let idx=1; idx < this._items.length; idx++){
-        //         let item = this._items[idx]
-        //         item.node.y = pitem.node.y - pitem.node.height - item.padding
-        //         pitem = item
-        //     }
-        // }
+        console.log( "_updateVerticalItems")
+        if( this._items.length > 1) {
+            let pitem = this._items[0]
+            for( let idx=1; idx < this._items.length; idx++){
+                let item = this._items[idx]
+                let c = item.itemIdx % this.gridCount
+                item.node.y = c !== 0? pitem.node.y: pitem.node.y - pitem.node.height - item.padding
+                item.node.x = this.centers[c]
+                pitem = item
+            }
+        }
     }
 
     _updateHorizontalItems(){
-        
+        console.log( "_updateHorizontalItems")
+        if( this._items.length > 1) {
+            let preitem = this._items[0]
+            for( let idx=1; idx < this._items.length; idx++){
+                let item = this._items[idx]
+                let c = item.itemIdx % this.gridCount
+                item.node.x = c !== 0? preitem.node.x: preitem.node.x + preitem.node.height + item.padding
+                item.node.y = this.centers[c]
+                preitem = item
+            }
+        }
     }
 }

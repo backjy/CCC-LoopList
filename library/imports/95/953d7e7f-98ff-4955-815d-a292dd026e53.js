@@ -15,6 +15,9 @@ var LoopListGrid = /** @class */ (function (_super) {
         _this.centers = [];
         return _this;
     }
+    LoopListGrid.prototype.start = function () {
+        this._itemSizeDirty = true;
+    };
     /// 计算grid 的中心
     LoopListGrid.prototype._calculateBoundary = function () {
         _super.prototype._calculateBoundary.call(this);
@@ -158,17 +161,30 @@ var LoopListGrid = /** @class */ (function (_super) {
         return false;
     };
     LoopListGrid.prototype._updateVerticalItems = function () {
-        // console.log("item size dirty")
-        // if( this._items.length > 1) {
-        //     let pitem = this._items[0]
-        //     for( let idx=1; idx < this._items.length; idx++){
-        //         let item = this._items[idx]
-        //         item.node.y = pitem.node.y - pitem.node.height - item.padding
-        //         pitem = item
-        //     }
-        // }
+        console.log("_updateVerticalItems");
+        if (this._items.length > 1) {
+            var pitem = this._items[0];
+            for (var idx = 1; idx < this._items.length; idx++) {
+                var item = this._items[idx];
+                var c = item.itemIdx % this.gridCount;
+                item.node.y = c !== 0 ? pitem.node.y : pitem.node.y - pitem.node.height - item.padding;
+                item.node.x = this.centers[c];
+                pitem = item;
+            }
+        }
     };
     LoopListGrid.prototype._updateHorizontalItems = function () {
+        console.log("_updateHorizontalItems");
+        if (this._items.length > 1) {
+            var preitem = this._items[0];
+            for (var idx = 1; idx < this._items.length; idx++) {
+                var item = this._items[idx];
+                var c = item.itemIdx % this.gridCount;
+                item.node.x = c !== 0 ? preitem.node.x : preitem.node.x + preitem.node.height + item.padding;
+                item.node.y = this.centers[c];
+                preitem = item;
+            }
+        }
     };
     __decorate([
         property(cc.Integer)
