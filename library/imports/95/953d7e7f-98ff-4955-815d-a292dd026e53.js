@@ -15,9 +15,6 @@ var LoopListGrid = /** @class */ (function (_super) {
         _this.centers = [];
         return _this;
     }
-    LoopListGrid.prototype.start = function () {
-        this._itemSizeDirty = true;
-    };
     /// 计算grid 的中心
     LoopListGrid.prototype._calculateBoundary = function () {
         _super.prototype._calculateBoundary.call(this);
@@ -72,6 +69,7 @@ var LoopListGrid = /** @class */ (function (_super) {
                 return true;
             }
             /// recycle right item
+            // if( this._getItemLeft(rightItem) > (this.rightBoundary + this._maxPadding)) {
             if (leftItem.itemIdx > 0 && this._getItemLeft(rightItem) > (this.rightBoundary + this._maxPadding)) {
                 this._items.splice(curCount - 1, 1);
                 this._recycle(rightItem);
@@ -129,8 +127,8 @@ var LoopListGrid = /** @class */ (function (_super) {
                 return true;
             }
             /// recycle bottom item topitem.itemIdx > 0 &&
-            // if( topitem.itemIdx > 0 && this._getItemTop( bottomitem) < (this.bottomBoundary - this._maxPadding)) {
-            if (this._getItemTop(bottomitem) < (this.bottomBoundary - this._maxPadding)) {
+            if (topitem.itemIdx > 0 && this._getItemTop(bottomitem) < (this.bottomBoundary - this._maxPadding)) {
+                // if( this._getItemTop( bottomitem) < (this.bottomBoundary - this._maxPadding)) {
                 this._items.splice(curCount - 1, 1);
                 this._recycle(bottomitem);
                 return true;
@@ -161,7 +159,6 @@ var LoopListGrid = /** @class */ (function (_super) {
         return false;
     };
     LoopListGrid.prototype._updateVerticalItems = function () {
-        console.log("_updateVerticalItems");
         if (this._items.length > 1) {
             var pitem = this._items[0];
             for (var idx = 1; idx < this._items.length; idx++) {
@@ -174,7 +171,6 @@ var LoopListGrid = /** @class */ (function (_super) {
         }
     };
     LoopListGrid.prototype._updateHorizontalItems = function () {
-        console.log("_updateHorizontalItems");
         if (this._items.length > 1) {
             var preitem = this._items[0];
             for (var idx = 1; idx < this._items.length; idx++) {

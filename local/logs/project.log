@@ -1116,3 +1116,35 @@ If you use TS, it should be changed to:
     }
     %s: cc.Texture2D = null;
 (This helps us to successfully refactor all RawAssets at v2.0, sorry for the inconvenience. 😰 )
+2020-03-15T03:00:10.678Z - warn: Please change the definition of property 'audioClip' in class 'Touchable'. Starting from v1.10,
+properties in CCClass can not be abbreviated if they are of type RawAsset.
+Please use the complete form.
+For example, if the type is Texture2D, the previous definition is:
+    audioClip: cc.Texture2D,
+If you use JS, it should be changed to:
+    audioClip: {
+      type: cc.Texture2D // use 'type:' to define Texture2D object directly
+      default: null,     // object's default value is null
+    },
+If you use TS, it should be changed to:
+    %s: {
+      type: cc.Texture2D // use 'type:' to define Texture2D object directly
+    }
+    %s: cc.Texture2D = null;
+(This helps us to successfully refactor all RawAssets at v2.0, sorry for the inconvenience. 😰 )
+2020-03-15T03:00:51.740Z - warn: Please change the definition of property 'audioClip' in class 'Touchable'. Starting from v1.10,
+properties in CCClass can not be abbreviated if they are of type RawAsset.
+Please use the complete form.
+For example, if the type is Texture2D, the previous definition is:
+    audioClip: cc.Texture2D,
+If you use JS, it should be changed to:
+    audioClip: {
+      type: cc.Texture2D // use 'type:' to define Texture2D object directly
+      default: null,     // object's default value is null
+    },
+If you use TS, it should be changed to:
+    %s: {
+      type: cc.Texture2D // use 'type:' to define Texture2D object directly
+    }
+    %s: cc.Texture2D = null;
+(This helps us to successfully refactor all RawAssets at v2.0, sorry for the inconvenience. 😰 )

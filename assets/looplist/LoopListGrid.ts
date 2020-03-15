@@ -14,10 +14,6 @@ export default class LoopListGrid extends LoopList{
     /// grid item 开始位置
     centers: number[] = [];
 
-    start(){
-        this._itemSizeDirty = true
-    }
-
     /// 计算grid 的中心
     _calculateBoundary(){
         super._calculateBoundary()
@@ -69,6 +65,7 @@ export default class LoopListGrid extends LoopList{
                 return true
             }
             /// recycle right item
+            // if( this._getItemLeft(rightItem) > (this.rightBoundary + this._maxPadding)) {
             if( leftItem.itemIdx > 0 && this._getItemLeft(rightItem) > (this.rightBoundary + this._maxPadding)) {
                 this._items.splice( curCount-1, 1)
                 this._recycle( rightItem)
@@ -127,8 +124,8 @@ export default class LoopListGrid extends LoopList{
                 return true
             }
             /// recycle bottom item topitem.itemIdx > 0 &&
-            // if( topitem.itemIdx > 0 && this._getItemTop( bottomitem) < (this.bottomBoundary - this._maxPadding)) {
-            if( this._getItemTop( bottomitem) < (this.bottomBoundary - this._maxPadding)) {
+            if( topitem.itemIdx > 0 && this._getItemTop( bottomitem) < (this.bottomBoundary - this._maxPadding)) {
+            // if( this._getItemTop( bottomitem) < (this.bottomBoundary - this._maxPadding)) {
                 this._items.splice( curCount-1, 1)
                 this._recycle( bottomitem)
                 return true
@@ -160,7 +157,6 @@ export default class LoopListGrid extends LoopList{
     }
 
     _updateVerticalItems(){
-        console.log( "_updateVerticalItems")
         if( this._items.length > 1) {
             let pitem = this._items[0]
             for( let idx=1; idx < this._items.length; idx++){
@@ -174,7 +170,6 @@ export default class LoopListGrid extends LoopList{
     }
 
     _updateHorizontalItems(){
-        console.log( "_updateHorizontalItems")
         if( this._items.length > 1) {
             let preitem = this._items[0]
             for( let idx=1; idx < this._items.length; idx++){
