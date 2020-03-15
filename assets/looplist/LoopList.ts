@@ -1,63 +1,63 @@
 import LoopListItem  from "./LoopListItem";
 
 const EPSILON = 1e-4;1
-
-const {ccclass, property, menu, disallowMultiple} = cc._decorator;
-
 export enum Movement{
     Horizontal,
     Vertical,
 }
 
+
+const {ccclass, property, menu, disallowMultiple} = cc._decorator;
+
 @ccclass
 @disallowMultiple()
 @menu("UIExtension/LoopList")
 export default class LoopList extends cc.Component {
-
+    /// 移动方向
     @property( {type:cc.Enum(Movement), serializable: true})
     movement: Movement = Movement.Vertical;
-    
+
     @property( cc.Float)
-    private cacheBoundary: number = 200
+    protected cacheBoundary: number = 20
 
     @property( cc.Integer)
-    private frameCreateMax: number = 30
+    protected frameCreateMax: number = 30
 
     @property( cc.Float)
-    private scrollSpeedMax: number = 10
+    protected scrollSpeedMax: number = 10
 
     /// item 缓存池
-    private _itemPool: { [key:string]: LoopListItem[]} = null
-    private _templates: {[key:string]: LoopListItem} = {}
-    private _template: string = null /// 默认使用的prefab
-    private _itemCreator: ( view: LoopList, idx: number)=>LoopListItem = null
-    private _totalcount: number = 0
+    protected _itemPool: { [key:string]: LoopListItem[]} = null
+    protected _templates: {[key:string]: LoopListItem} = {}
+    protected _template: string = null /// 默认使用的prefab
+    protected _itemCreator: ( view: LoopList, idx: number)=>LoopListItem = null
+    protected _totalcount: number = 0
     /// current display item
-    private _items: LoopListItem[] = []
+    protected _items: LoopListItem[] = []
     /// max padding 区分回收边界和创建边界 避免padding 造成的重复创建和回收
-    private _maxPadding: number = 0
+    protected _maxPadding: number = 0
 
     /// 缓存边界 recycle & create item boundary
-    private leftBoundary: number = 0
-    private rightBoundary: number = 0
-    private topBoundary: number = 0
-    private bottomBoundary: number = 0
+    protected leftBoundary: number = 0
+    protected rightBoundary: number = 0
+    protected topBoundary: number = 0
+    protected bottomBoundary: number = 0
     /// 上下左右边界
-    private _leftBoundary: number   = 0
-    private _bottomBoundary: number = 0 
-    private _rightBoundary: number  = 0
-    private _topBoundary: number    = 0
+    protected _leftBoundary: number   = 0
+    protected _bottomBoundary: number = 0 
+    protected _rightBoundary: number  = 0
+    protected _topBoundary: number    = 0
     /// 标记item size 是否变化
-    private _itemSizeDirty: boolean = true
+    protected _itemSizeDirty: boolean = false
     /// 标记item 是否需要更新（创建或回收）
-    private _itemDirty: boolean = false
+    protected _itemDirty: boolean = false
     /// 滑动移动时用到的控制变量 展示item 到idx
-    private animeIdx: number = 0
-    private bAnimeMoveing: boolean = false
+    protected animeIdx: number = 0
+    protected bAnimeMoveing: boolean = false
 
     /// 视口
     @property( cc.ScrollView)
-    private scrollView: cc.ScrollView = null
+    protected scrollView: cc.ScrollView = null
     get content(): cc.Node { return this.scrollView.content}
     get viewPort():cc.Node { return this.content.parent}
 
@@ -69,6 +69,7 @@ export default class LoopList extends cc.Component {
         /// 重置scrollview 滚动属性
         this.scrollView.horizontal = this.movement == Movement.Horizontal
         this.scrollView.vertical = this.movement == Movement.Vertical
+        this.scrollView.elastic = true /// 允许超出边界
         /// 重定向scrollview 函数
         this.scrollView._getHowMuchOutOfBoundary = this._getHowMuchOutOfBoundary.bind(this)
         this.scrollView._calculateBoundary = this._calculateBoundary.bind(this)
@@ -165,6 +166,8 @@ export default class LoopList extends cc.Component {
                 let node = cc.instantiate( prefab.node) 
                 instance = node.getComponent( LoopListItem)
                 instance.itemKey = key
+            } else {
+                console.error(`not found template: ${key}`)
             }
         }
         return instance
@@ -200,7 +203,7 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _initializePool() {
+    protected _initializePool() {
         if( this._itemPool == null) {
             this._itemPool = {}
             let prefabs = this.content.getComponentsInChildren( LoopListItem)
@@ -215,14 +218,14 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private setContentPosition( pos: cc.Vec2){
+    protected setContentPosition( pos: cc.Vec2){
         this.scrollView.stopAutoScroll()
         if( this.scrollView.content) {
             this.scrollView.content.position = pos
         }
     }
 
-    private _showItemVer( idx: number) {
+    protected _showItemVer( idx: number) {
         /// 判断需要现实的item和最后一个都在窗口内就不用执行了
         if( this._items.length > 0) {
             let frist = this._getItemAt( idx)
@@ -260,7 +263,7 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _showItemHor( idx: number){
+    protected _showItemHor( idx: number){
         /// 判断需要显示的item和最后一个都在窗口内就不用执行了
         if( this._items.length > 0) {
             let frist = this._getItemAt( idx)
@@ -297,7 +300,7 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _scrollToItemHor( idx: number) {
+    protected _scrollToItemHor( idx: number) {
         let item = this._getItemAt( idx)
         let offset = 0
         if( item == null) {
@@ -330,7 +333,7 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _scrollToItemVer( idx: number){
+    protected _scrollToItemVer( idx: number){
         let item = this._getItemAt( idx)
         let offset = 0
         if( item == null) {
@@ -363,7 +366,7 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _recycle(item: LoopListItem) {
+    protected _recycle(item: LoopListItem) {
         let pool = this._itemPool[item.itemKey]
         if( pool == null) { pool = this._itemPool[item.itemKey] = [] }
         item.node.active = false
@@ -371,7 +374,7 @@ export default class LoopList extends cc.Component {
         pool.push( item)
     }
     
-    private _recycleAllItems( reset:boolean = false){
+    protected _recycleAllItems( reset:boolean = false){
         this._items.forEach( item => {
             this._recycle( item)
         });
@@ -380,7 +383,7 @@ export default class LoopList extends cc.Component {
         reset && this.setContentPosition( cc.Vec2.ZERO)
     }
 
-    private _createNewItem( idx: number): LoopListItem {
+    protected _createNewItem( idx: number): LoopListItem {
         if( idx < 0 || idx >= this._totalcount) return null 
         let item = this._itemCreator? this._itemCreator( this, idx) : null
         if( item != null) {
@@ -392,7 +395,7 @@ export default class LoopList extends cc.Component {
         return item
     }
 
-    private _getItemAt( idx: number): LoopListItem{
+    protected _getItemAt( idx: number): LoopListItem{
         for( let i=0; i<this._items.length; i++) {
             let item = this._items[i] 
             if( item.itemIdx == idx) {
@@ -402,25 +405,25 @@ export default class LoopList extends cc.Component {
         return null
     }
 
-    private _getItemTop( item: LoopListItem): number {
+    protected _getItemTop( item: LoopListItem): number {
         return item.node.y + this.content.y
     }
 
-    private _getItemBottom( item: LoopListItem): number {
+    protected _getItemBottom( item: LoopListItem): number {
         let itemtop = this._getItemTop( item)
         return itemtop - item.node.height 
     }
 
-    private _getItemLeft( item: LoopListItem): number {
+    protected _getItemLeft( item: LoopListItem): number {
         return item.node.x + this.content.x // + item.offset
     }
 
-    private _getItemRight( item: LoopListItem): number {
+    protected _getItemRight( item: LoopListItem): number {
         let itemLeft = this._getItemLeft( item)
         return itemLeft + item.node.width
     }
 
-    private _updateListView( idx: number = 0, pos: number = null) {
+    protected _updateListView( idx: number = 0, pos: number = null) {
         /// cur count
         let checkcount = 0
         let create = this.movement === Movement.Horizontal? this._updateHorizontal: this._updateVertical
@@ -432,7 +435,7 @@ export default class LoopList extends cc.Component {
         return true
     }
 
-    private _createTopItem( idx: number, y: number = null): LoopListItem {
+    protected _createTopItem( idx: number, y: number = null): LoopListItem {
         let item = this._createNewItem( idx)
         if( item) {
             if( y == null) {
@@ -446,7 +449,7 @@ export default class LoopList extends cc.Component {
     }
 
     /// 从新排序items
-    private _updateVerticalItems() {
+    protected _updateVerticalItems() {
         if( this._items.length > 1) {
             let pitem = this._items[0]
             for( let idx=1; idx < this._items.length; idx++){
@@ -457,11 +460,11 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _updateVertical( idx: number, pos: number) : boolean {
+    protected _updateVertical( idx: number, pos: number) : boolean {
         let curCount = this._items.length
         /// recycle all items
-        if( this._totalcount == 0 && curCount > 0) {
-            this._recycleAllItems( true)
+        if( this._totalcount == 0 ) {
+            curCount > 0 && this._recycleAllItems( true)
             return false
         }
         /// fill up & fill down
@@ -509,7 +512,7 @@ export default class LoopList extends cc.Component {
         return false
     }
 
-    private _createLeftItem( idx: number, x:number = null) : LoopListItem{
+    protected _createLeftItem( idx: number, x:number = null) : LoopListItem{
         let item = this._createNewItem( idx)
         if( item) {
             if( x == null) {
@@ -522,7 +525,7 @@ export default class LoopList extends cc.Component {
         return item
     }
 
-    private _updateHorizontalItems(){
+    protected _updateHorizontalItems(){
         if( this._items.length > 1) {
             let preitem = this._items[0]
             for( let idx=1; idx < this._items.length; idx++){
@@ -533,11 +536,11 @@ export default class LoopList extends cc.Component {
         }
     }
 
-    private _updateHorizontal( idx: number, pos: number): boolean{
+    protected _updateHorizontal( idx: number, pos: number): boolean{
         let curCount = this._items.length
         /// recycle all items
-        if( this._totalcount == 0 && curCount > 0) {
-            this._recycleAllItems( true)
+        if( this._totalcount == 0) {
+            curCount > 0 && this._recycleAllItems( true)
             return false
         }
         /// fill up & fill down
@@ -582,6 +585,7 @@ export default class LoopList extends cc.Component {
                 return true
             }
         }
+        return false
     }
 
     /// 计算边界 下面的函数都是重写scrollview 原有的函数

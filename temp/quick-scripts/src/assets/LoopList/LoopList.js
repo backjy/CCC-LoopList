@@ -6,18 +6,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var LoopListItem_1 = require("./LoopListItem");
 var EPSILON = 1e-4;
 1;
-var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property, menu = _a.menu, disallowMultiple = _a.disallowMultiple;
 var Movement;
 (function (Movement) {
     Movement[Movement["Horizontal"] = 0] = "Horizontal";
     Movement[Movement["Vertical"] = 1] = "Vertical";
 })(Movement = exports.Movement || (exports.Movement = {}));
+var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property, menu = _a.menu, disallowMultiple = _a.disallowMultiple;
 var LoopList = /** @class */ (function (_super) {
     __extends(LoopList, _super);
     function LoopList() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
+        /// 移动方向
         _this.movement = Movement.Vertical;
-        _this.cacheBoundary = 200;
+        _this.cacheBoundary = 20;
         _this.frameCreateMax = 30;
         _this.scrollSpeedMax = 10;
         /// item 缓存池
@@ -41,7 +42,7 @@ var LoopList = /** @class */ (function (_super) {
         _this._rightBoundary = 0;
         _this._topBoundary = 0;
         /// 标记item size 是否变化
-        _this._itemSizeDirty = true;
+        _this._itemSizeDirty = false;
         /// 标记item 是否需要更新（创建或回收）
         _this._itemDirty = false;
         /// 滑动移动时用到的控制变量 展示item 到idx
@@ -69,6 +70,7 @@ var LoopList = /** @class */ (function (_super) {
         /// 重置scrollview 滚动属性
         this.scrollView.horizontal = this.movement == Movement.Horizontal;
         this.scrollView.vertical = this.movement == Movement.Vertical;
+        this.scrollView.elastic = true; /// 允许超出边界
         /// 重定向scrollview 函数
         this.scrollView._getHowMuchOutOfBoundary = this._getHowMuchOutOfBoundary.bind(this);
         this.scrollView._calculateBoundary = this._calculateBoundary.bind(this);
@@ -166,6 +168,9 @@ var LoopList = /** @class */ (function (_super) {
                 var node = cc.instantiate(prefab.node);
                 instance = node.getComponent(LoopListItem_1.default);
                 instance.itemKey = key;
+            }
+            else {
+                console.error("not found template: " + key);
             }
         }
         return instance;
@@ -459,8 +464,8 @@ var LoopList = /** @class */ (function (_super) {
     LoopList.prototype._updateVertical = function (idx, pos) {
         var curCount = this._items.length;
         /// recycle all items
-        if (this._totalcount == 0 && curCount > 0) {
-            this._recycleAllItems(true);
+        if (this._totalcount == 0) {
+            curCount > 0 && this._recycleAllItems(true);
             return false;
         }
         /// fill up & fill down
@@ -534,8 +539,8 @@ var LoopList = /** @class */ (function (_super) {
     LoopList.prototype._updateHorizontal = function (idx, pos) {
         var curCount = this._items.length;
         /// recycle all items
-        if (this._totalcount == 0 && curCount > 0) {
-            this._recycleAllItems(true);
+        if (this._totalcount == 0) {
+            curCount > 0 && this._recycleAllItems(true);
             return false;
         }
         /// fill up & fill down
@@ -580,6 +585,7 @@ var LoopList = /** @class */ (function (_super) {
                 return true;
             }
         }
+        return false;
     };
     /// 计算边界 下面的函数都是重写scrollview 原有的函数
     LoopList.prototype._calculateBoundary = function () {

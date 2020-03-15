@@ -3,7 +3,7 @@ cc._RF.push(module, '7392bBLh4NAwLoZSiKHSTnO', 'LoopListItem');
 // looplist/LoopListItem.ts
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property, menu = _a.menu;
+var _a = cc._decorator, ccclass = _a.ccclass, property = _a.property, menu = _a.menu, disallowMultiple = _a.disallowMultiple;
 var LoopListItem = /** @class */ (function (_super) {
     __extends(LoopListItem, _super);
     function LoopListItem() {
@@ -18,6 +18,8 @@ var LoopListItem = /** @class */ (function (_super) {
         _this._offset = 0;
         /// item index
         _this._idx = -1;
+        /// 添加用户自定义绑定数据
+        _this._userData = null;
         /// current loop list
         _this.looplist = null;
         return _this;
@@ -37,6 +39,12 @@ var LoopListItem = /** @class */ (function (_super) {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(LoopListItem.prototype, "userData", {
+        get: function () { return this._userData; },
+        set: function (value) { this._userData = value; },
+        enumerable: true,
+        configurable: true
+    });
     LoopListItem.prototype.onEnable = function () { this.node.on(cc.Node.EventType.SIZE_CHANGED, this.onSizeChanged, this); };
     LoopListItem.prototype.onDisable = function () { this.node.off(cc.Node.EventType.SIZE_CHANGED, this.onSizeChanged, this); };
     LoopListItem.prototype.onSizeChanged = function () {
@@ -52,6 +60,7 @@ var LoopListItem = /** @class */ (function (_super) {
     ], LoopListItem.prototype, "padding", void 0);
     LoopListItem = __decorate([
         ccclass,
+        disallowMultiple,
         menu("UIExtension/LoopListItem")
     ], LoopListItem);
     return LoopListItem;

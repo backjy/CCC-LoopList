@@ -10,7 +10,9 @@
                     };
                     function __define (exports, require, module) {
                         if (!nodeEnv) {__quick_compile_project__.registerModule(__filename, module);}
+require('./assets/gridtest');
 require('./assets/looplist/LoopList');
+require('./assets/looplist/LoopListGrid');
 require('./assets/looplist/LoopListItem');
 require('./assets/looplist/Touchable');
 require('./assets/test');
